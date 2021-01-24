@@ -1,12 +1,11 @@
 import evdev
 import asyncio
-import websockets
 import argparse
 import logging
 import threading
+import websockets
 from queue import Queue
-
-from server import Server
+import time
 
 parser = argparse.ArgumentParser(description="UInput KVM")
 parser.add_argument('-c', '--client', dest="client", action="store", help="Address to connect to")
@@ -33,6 +32,48 @@ args = parser.parse_args()
 # ch.setFormatter(formatter)
 # log.addHandler(ch)
 
+class Server():
+    def __init__(self, mouse, keyboard):
+        self.mouse = mouse
+        self.keyboard = keyboard
+        self.start()
+
+    async def listen(self, websocket, path):
+        print("listen")
+        await websocket.recv()
+        
+
+        # async for event in self.mouse.async_read_loop():
+        #     print(self.mouse.path, evdev.categorize(event), sep=': ')
+            # self.out_q.put(message)
+        # data = await websocket.recv()
+        # self.out_q.put(data)
+        # process_events(self.mouse)
+        # process_events(self.keyboard)
+            # await websocket.send("test")
+
+    async def process_events(self, device):
+        print("process_events")
+        async for event in device.async_read_loop():
+            print(device.path, evdev.categorize(event), sep=': ')
+
+    async def run(self):
+        
+        self.server = websockets.serve(self.listen, "localhost", 8765)
+        
+        # print("---")
+        # asyncio.ensure_future(self.process_events(self.mouse))
+        # print("----")
+        # asyncio.ensure_future(self.process_events(self.keyboard))
+        # print("-----")
+        
+        # print("-------")
+
+    def start(self):
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(self.run())
+        loop.run_forever()
+
 
 def get_devices():
     return [evdev.InputDevice(path) for path in evdev.list_devices()]
@@ -48,27 +89,10 @@ def grab_device(devices, path):
 
     return return_device
 
-def process_events(device, in_q, out_q):
-    for event in device.async_read_loop():
-        in_q.put(event)
-        server_thread.join()
-        # print(device.path, evdev.categorize(event), sep=': ')
-
-
 print("Getting list of devices")
 devices = get_devices()
 
 if args.server:
-    #create the server
-    # s = Server()
-    input_queue = Queue() #input from local computer
-    output_queue = Queue() #output from remote
-    server_thread = Server(input_queue, output_queue)
-    server_thread.start()
-
-
-
-
     #grab mouse
     if args.mouse:
         mouse = grab_device(devices, args.mouse)
@@ -77,10 +101,16 @@ if args.server:
     if args.keyboard:
         keyboard = grab_device(devices, args.keyboard)
         
-    mouse_event_thread = threading.Thread(target=process_events, args=(mouse, input_queue, output_queue))
-    mouse_event_thread.start()
-    keyboard_event_thread = threading.Thread(target=process_events, args=(keyboard,input_queue, output_queue))
-    keyboard_event_thread.start()
+    #create server
+    # server = Server(mouse, keyboard)
+    # server.start()
+    server_thread = threading.Thread(target=Server, args=(mouse, keyboard))
+    server_thread.start()
+
+    server_thread.join(10)
+
+
+
 
 
 

@@ -13,13 +13,13 @@ class Server(threading.Thread):
     async def listen(self, websocket, path):
         async for message in websocket:
             print(message)
-            self.out_q.put(message)
+            # self.out_q.put(message)
         # data = await websocket.recv()
         # self.out_q.put(data)
         print(in_q)
-        for item in iter(self.in_q.get, None):
-            print(item)
-            await websocket.send()
+        async for item in iter(self.in_q.get, None):
+            # print(item)
+            await websocket.send("test")
 
     def run(self):
         loop = asyncio.new_event_loop()
