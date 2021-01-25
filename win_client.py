@@ -14,7 +14,6 @@ from asyncio.exceptions import CancelledError
 parser = argparse.ArgumentParser(description="WindowsClient KVM")
 parser.add_argument('-c', '--client', dest="client", action="store", help="Address to connect to")
 parser.add_argument('-n', '--name', dest="name", default=os.environ['COMPUTERNAME'], action="store", help="Client Name")
-parser.add_argument('-d', '--dev_name', dest="dev_name", default="UInput KVM", action="store", help="Name of device to be created for remote interactions")
 parser.add_argument('-p', '--port', dest="port", action="store", default="8765", help="Port for server or client to use. Defaults to 8765")
 parser.add_argument('-v', '--verbose', dest="verbose", action="store_true", help="Verbose logging")
 parser.add_argument('--ssl', dest="ssl", action="store", help="Self signed key file for ssl. (.pem) (also not working for me)")
