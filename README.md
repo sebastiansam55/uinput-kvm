@@ -42,6 +42,7 @@ I'm not entirely sure that the second part will be necessary, it may have been s
 Dang so there are alot of options huh. We're going to start from the top and work our way down the options. 
 
 | Flag | Description | [S]erver/[C]lient/[O]ptional Flag |
+| :--: | :---------: | :-------------------------------: |
 | `-c, --client` | The IP address the "remote" machine should connect to. | [C] |
 | `-n --name` | The name of the client to transmit to the server. Unused currently | [CO] |
 | `-s --server` | Address for the server to bind to (typically found with `ipconfig`) | [S] |
