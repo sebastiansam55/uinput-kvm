@@ -39,9 +39,9 @@ I also had to `chmod 660 /dev/uinput` on my testing VM and reboot again. Not qui
 I'm not entirely sure that the second part will be necessary, it may have been something in the code that was misbehaving
 
 ## Usage
-Dang so there are alot of options huh. We're going to start from the top and work our way down the options. 
+Dang so there are alot of options huh. We're going to start from the top and work our way down the options. Flag requirements are described via: [S]erver/[C]lient/[O]ptional.
 
-| Flag | Description | [S]erver/[C]lient/[O]ptional Flag |
+| Flag | Description | Required |
 | :--: | :---------: | :-------------------------------: |
 | `-c, --client` | The IP address the "remote" machine should connect to. | [C] |
 | `-n --name` | The name of the client to transmit to the server. Unused currently | [CO] |
