@@ -86,7 +86,12 @@ class Server():
     async def broadcast(self, message):
         if self.clients:
             print(self.clients)
-            await asyncio.wait([client.send(message) for client in self.clients])
+            for client in self.clients:
+                pass
+                try:
+                    await (client.send(message))
+                except ConnectionClosedOK:
+                    self.clients.remove(client)
 
     async def sendto_name(self, message, recp):
         #takes a name an checks the config
@@ -155,6 +160,7 @@ class Client():
                 loop.run_until_complete(self.event_loop())
             except CancelledError as ce:
                 print("Connection cancelled")
+            #comment/uncomment for long form errors
             except:
                 e = sys.exc_info()[0]
                 print(e)
@@ -177,49 +183,13 @@ class HostClient(Client):
         self.run()
 
     async def event_loop(self):
-        modifiers = self.config.get("modifiers")
-        # print(modifiers)
         uri = self.get_uri()
         sendto = None
         async with websockets.connect(uri, ssl=self.ssl_context) as websocket:
             await websocket.send(json.dumps({"ident":self.name}))
-            held_keys = []
-            async for ev in self.device.async_read_loop():
-                # if ev.code in held_mod:
-                if ev.value == 1: #modifier pressed down
-                    held_keys.append(ev.code)
-                elif ev.value == 0: #modifier released!
-                    if ev.code in held_keys:
-                        held_keys.remove(ev.code)
-                print(held_keys)
-                #TODO add configable hotkeys that will swap computers info is sent to
-                all_held = True
-                for key in modifiers:
-                    if key in held_keys:
-                        all_held = True
-                    else:
-                        all_held = False
-                        break
-                if all_held:
-                    print("Key event detected when left [shift alt ctrl] held", ev)
-                    for client in self.hotkeys:
-                        if client[1] == ev.code:
-                            sendto = client[0]
-                            await self.change_sendto(websocket, sendto)
+            while True:
+                await self.dev_event_loop(sendto, websocket)
 
-                data = {
-                    "timestamp": str(ev.timestamp()),
-                    "sendto": sendto,
-                    "type": ev.type,
-                    "code": ev.code,
-                    "value": ev.value
-                }
-                try:
-                    await websocket.send(json.dumps(data))
-                except ConnectionClosedOK as cco:
-                    print("Connection Closed!")
-                # except ConnectionClosedError as cce:
-                #     print("Connection error")
     async def change_sendto(self, websocket, sendto):
         print("Sending to: ", sendto)
         data = {"change_sendto": sendto}
@@ -228,8 +198,67 @@ class HostClient(Client):
         except ConnectionClosedOK as cco:
             print("Connection closed")
 
-#TODO maybe abstract some more to not do hotkey proceesing for mouse
-# class KeyboardClient():
+class KeyboardClient(HostClient):
+    async def dev_event_loop(self, sendto, websocket):
+        modifiers = self.config.get("modifiers")
+        # print(modifiers)
+        held_keys = []
+        async for ev in self.device.async_read_loop():
+
+            if ev.value == 1: #modifier pressed down
+                held_keys.append(ev.code)
+            elif ev.value == 0: #modifier released!
+                if ev.code in held_keys:
+                    held_keys.remove(ev.code)
+
+            print(held_keys)
+
+            all_held = True
+            for key in modifiers:
+                if key in held_keys:
+                    all_held = True
+                else:
+                    all_held = False
+                    break
+
+            if all_held:
+                print("Key event detected when left [shift alt ctrl] held", ev)
+                for client in self.hotkeys:
+                    if client[1] == ev.code:
+                        sendto = client[0]
+                        await self.change_sendto(websocket, sendto)
+
+            data = {
+                "timestamp": str(ev.timestamp()),
+                "sendto": sendto,
+                "type": ev.type,
+                "code": ev.code,
+                "value": ev.value
+            }
+
+            try:
+                await websocket.send(json.dumps(data))
+            except ConnectionClosedOK as cco:
+                print("Connection Closed!")
+
+class MouseClient(HostClient):
+    #mouse is much simpler
+    async def dev_event_loop(self, sendto, websocket):
+        async for ev in self.device.async_read_loop():
+            data = {
+                "timestamp": str(ev.timestamp()),
+                #this is actually handled serverside despite appearances
+                "sendto": sendto,
+                "type": ev.type,
+                "code": ev.code,
+                "value": ev.value
+            }
+            try:
+                await websocket.send(json.dumps(data))
+            except ConnectionClosedOK as cco:
+                print("Connection Closed!")
+
+
 
 #client that recieves input events and executes them via uinput!
 class RemoteClient(Client):
@@ -237,7 +266,19 @@ class RemoteClient(Client):
         super().__init__(address, port, ssl_filename, name)
         self.config = config_data
         self.debug = debug
-        self.ui = evdev.UInput(name=dev_name)
+        cap = {
+            e.EV_KEY: e.keys.keys(),
+            e.EV_REL: [
+                e.REL_X,
+                e.REL_Y,
+                e.REL_HWHEEL,
+                e.REL_WHEEL,
+                e.REL_HWHEEL_HI_RES,
+                e.REL_WHEEL_HI_RES
+            ],
+
+        }
+        self.ui = evdev.UInput(cap, name=dev_name)
         self.run()
 
     async def event_loop(self):
@@ -301,7 +342,7 @@ if args.server:
         if args.grab:
             mouse.grab()
         print("Making MouseHostClient thread")
-        mouse_host_thread = threading.Thread(target=HostClient, args=(args.server, args.port, args.ssl, args.name, mouse, config_data))
+        mouse_host_thread = threading.Thread(target=MouseClient, args=(args.server, args.port, args.ssl, args.name, mouse, config_data))
         mouse_host_thread.name = "Mouse Client Thread"
         print("Starting mousehostclient thread")
         mouse_host_thread.start()
@@ -312,7 +353,7 @@ if args.server:
         if args.grab:
             keyboard.grab()
         print("Making KeyboardHostClient thread")
-        keyboard_host_thread = threading.Thread(target=HostClient, args=(args.server, args.port, args.ssl, args.name, keyboard, config_data))
+        keyboard_host_thread = threading.Thread(target=KeyboardClient, args=(args.server, args.port, args.ssl, args.name, keyboard, config_data))
         keyboard_host_thread.name = "Keyboard Client Thread"
         print("Starting keyboardhostclient thread")
         keyboard_host_thread.start()
