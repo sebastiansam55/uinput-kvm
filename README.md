@@ -56,9 +56,6 @@ Dang so there are alot of options huh. We're going to start from the top and wor
 | `--ssl` | Implemented ssl support according to docs. Does not work for me. | [CSO] |
 | `--debug` | Debug for clients, operates everything but actually writing events. | [CO] |
 
-Note that there currently isn't much (any) difference between what happens in the `-k` or `-m` flags. They are currently interchangeable.
-
-
 ## Config file
 The program takes a `json` file passed to it via `--config`. In this file you can (sort of) define the hotkeys used to swap between kvm clients.
 
@@ -131,7 +128,32 @@ where your remote scripts should look something like this;
 
 `python3 kvm.py -c 192.168.0.22 -p 8765 `
 
+## Windows Client
+The windows client uses boppreh's [keyboard](https://github.com/boppreh/keyboard) and [mouse](https://github.com/boppreh/mouse) modules. Big shout-out for those libraries (and all others!). I never program on Windows with python and these made it down right easy to implement (with one or two minor hitches! no h-scroll for one!)
+
+For the windows client in addition to `keyboard` and `mouse` you also need `websockets`. Installing these is pretty much the same process as on linux; assuming you have `python` installed and in your execution path;
+
+```python
+python3 -m pip install keyboard
+python3 -m pip install mouse
+python3 -m pip install websockets
+```
+
+Starting the client should be more or less identical to the Linux version:
+
+`python3 win_client.py -c 192.168.0.10 -p 8765 --name windows`
+
+If you don't use the `--name` flag the program will default to using the name derived from `os.environ['COMPUTERNAME']` which by default is something like `DESKTOP-A2D9OA`.
+
+Again the `--verbose` flag does nothing... yet!
+
+Sometimes clicking with the mouse seems to hang the windows client? I'm not sure very intermittent could have been caused by something it was doing in testing/development. Might also be related to running in a VM with virtualbox additions enabled. Not sure!
+
 ## TODO
 Check that mouse stuff is working as expected with regular mice (it seems trackpoint doesn't work great)
 
 Add way to ungrab local devices upon hotkey. Would also need to regrab upon other hotkeys!
+
+I think that the best way to do this would be to create a way a Client can get broadcasts even if it is using the same IP. Then you could do exclusive grab and just swap to host link when you want input.
+
+Looks like the `keyboard` and `mouse` libraries support Mac devices... Just have to find a more recent model macbook.
