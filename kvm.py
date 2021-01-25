@@ -4,14 +4,18 @@ import argparse
 import logging
 import threading
 import websockets
+from websockets.exceptions import ConnectionClosedError
 from queue import Queue
 import time
+import json
 
 parser = argparse.ArgumentParser(description="UInput KVM")
 parser.add_argument('-c', '--client', dest="client", action="store", help="Address to connect to")
+parser.add_argument('-n', '--name', dest="name", action="store", help="Client Name")
 parser.add_argument('-s', '--server', dest="server", action="store", help="Address to bind to")
 parser.add_argument('-m', '--mouse', dest="mouse", action="store", help="Full path to mouse device")
 parser.add_argument('-k', '--keyboard', dest="keyboard", action="store", help="Full path to keyboard device")
+parser.add_argument('-d', '--dev_name', dest="dev_name", default="UInput KVM", action="store", help="Name of device to be created for remote interactions")
 parser.add_argument('-p', '--port', dest="port", action="store", help="Port for server or client to use")
 parser.add_argument('-v', '--verbose', dest="verbose", action="store_true", help="Verbose logging")
 
@@ -32,48 +36,86 @@ args = parser.parse_args()
 # ch.setFormatter(formatter)
 # log.addHandler(ch)
 
+#start a server that just passes around messages and keeps track of the clients
 class Server():
+    def __init__(self):
+        self.clients = set()
+        self.run()
+
+    async def connect(self, ws):
+        self.clients.add(ws)
+
+    async def disconnect(self, ws):
+        self.clients.remove(ws)
+
+    async def broadcast(self, message):
+        if self.clients:
+            print(self.clients)
+            await asyncio.wait([client.send(message) for client in self.clients])
+
+    async def listen(self, websocket, path):
+        await self.connect(websocket)
+        try:
+            async for message in websocket:
+                print(message)
+                try:
+                    data = json.loads(message)
+                    print(data)
+                except:
+                    print("json error")
+                await self.broadcast(message)
+        except ConnectionClosedError as cce:
+            print("Connection Lost")
+            print(cce)
+            await self.disconnect(websocket)
+        finally:
+            pass
+
+    def run(self):
+        print("Starting server")
+        loop = asyncio.new_event_loop()
+        self.server = websockets.serve(self.listen, "localhost", 8765, loop=loop)
+        loop.run_until_complete(self.server)
+        loop.run_forever()
+        
+
+class Client():
+    def run(self):
+        loop = asyncio.new_event_loop()
+        loop.run_until_complete(self.event_loop())
+        loop.run_forever()
+
+#HOST that sends out input events
+class HostClient(Client):
     def __init__(self, mouse, keyboard):
         self.mouse = mouse
         self.keyboard = keyboard
-        self.start()
+        self.run()
 
-    async def listen(self, websocket, path):
-        print("listen")
-        await websocket.recv()
-        
+    async def event_loop(self):
+        uri = "ws://localhost:8765"
+        async with websockets.connect(uri) as websocket:
+            async for ev in self.mouse.async_read_loop():
+                #TODO add configable hotkeys that will swap computers
+                data = {
+                    "type": ev.type,
+                    "code": ev.code,
+                    "value": ev.value
+                }
+                await websocket.send(json.dumps(data))
 
-        # async for event in self.mouse.async_read_loop():
-        #     print(self.mouse.path, evdev.categorize(event), sep=': ')
-            # self.out_q.put(message)
-        # data = await websocket.recv()
-        # self.out_q.put(data)
-        # process_events(self.mouse)
-        # process_events(self.keyboard)
-            # await websocket.send("test")
+#client that recieves input events and executes them via uinput!
+class RemoteClient(Client):
+    def __init__(self, dev_name):
+        self.ui = evdev.UInput(name=dev_name)
+        self.run()
 
-    async def process_events(self, device):
-        print("process_events")
-        async for event in device.async_read_loop():
-            print(device.path, evdev.categorize(event), sep=': ')
-
-    async def run(self):
-        
-        self.server = websockets.serve(self.listen, "localhost", 8765)
-        
-        # print("---")
-        # asyncio.ensure_future(self.process_events(self.mouse))
-        # print("----")
-        # asyncio.ensure_future(self.process_events(self.keyboard))
-        # print("-----")
-        
-        # print("-------")
-
-    def start(self):
-        loop = asyncio.new_event_loop()
-        loop.run_until_complete(self.run())
-        loop.run_forever()
-
+    async def event_loop(self):
+        uri = "ws://localhost:8765"
+        async with websockets.connect(uri) as websocket:
+            msg = await websocket.revc(str(ev))
+            data = json.loads(msg)
+            ui.write(data["type"], data["code"], data["event"])
 
 def get_devices():
     return [evdev.InputDevice(path) for path in evdev.list_devices()]
@@ -102,18 +144,22 @@ if args.server:
         keyboard = grab_device(devices, args.keyboard)
         
     #create server
-    # server = Server(mouse, keyboard)
-    # server.start()
-    server_thread = threading.Thread(target=Server, args=(mouse, keyboard))
+    print("Making server thread")
+    server_thread = threading.Thread(target=Server, args=())
+    print("Starting server thread")
     server_thread.start()
+    time.sleep(1)
 
-    server_thread.join(10)
-
-
-
-
-
+    print("Making HostClient thread")
+    host_thread = threading.Thread(target=HostClient, args=(mouse,keyboard))
+    print("Starting hostclient thread")
+    host_thread.start()
+    sys.exit()
 
 elif args.client:
     #create a uinput device for both mouse and keyboard?
+    print("Making RemoteClient thread")
+    remote_thread = threading.Thread(target=RemoteClient, args=(args.dev_name))
+    print("Starting RemoteClient thread")
+    remote_thread.start()
     pass
