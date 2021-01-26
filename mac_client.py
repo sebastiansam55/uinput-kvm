@@ -125,13 +125,13 @@ key_translate = {
     108:125,
     105:123,
     106:124,
-    14:117,
+    14:117, #backspace to delete
     28:76,
     102:115,
     107:119,
     109:121,
     104:116,
-    111:51,
+    111:51, # delete to backspace
     15:48,
     57:49,
     139:58,
@@ -202,7 +202,32 @@ key_translate = {
     74:78,
     98:75,
     83:65,
-    30:0
+    30:0,
+    41:50, #tilda
+    26:33, #left brace
+    27:30, #right brace
+    13:24, #equals
+    43:42, #pipe slash
+    12:27, #minus
+    39:41, #colon
+    40:39, #apostrope
+    #110:?, #insert
+    #42:?, #left shift
+    #54:?, #right shift
+    #29:?, #left ctrl
+    #97:?, #right ctrl
+    #56:?, #left alt
+    #100:?, #right alt
+    #99:?, #printscreen
+    #113:?, mute
+    #114:?, #volume down
+    #115:?, #volume up
+    
+
+
+    #143:?, #"fn" button on thinkpad
+
+
 }
 
 mouse_btn_map = {
