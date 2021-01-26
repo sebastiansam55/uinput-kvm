@@ -149,6 +149,13 @@ Again the `--verbose` flag does nothing... yet!
 
 Sometimes clicking with the mouse seems to hang the windows client? I'm not sure very intermittent could have been caused by something it was doing in testing/development. Might also be related to running in a VM with virtualbox additions enabled. Not sure!
 
+## MacOS client
+Relies on `websockets`, `pynput`. These packages can be installed as described above.
+
+Rough draft. MacOS seems to handle modifiers differently as well. I'll get around to completing implementation, it will probably be having to hand code a bunch of stuff instead of justing a lookup table.
+
+The mouse works great, including drag-and-select. Keyboard sort of works. There is a list of the keys on my (laptop) keyboard that I couldn't easily find translations for. Feel free to open a PR/Issue if you know some more about this.
+
 ## TODO
 Check that mouse stuff is working as expected with regular mice (it seems trackpoint doesn't work great)
 
