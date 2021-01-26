@@ -86,12 +86,19 @@ class Server():
     async def broadcast(self, message):
         if self.clients:
             print(self.clients)
+            remove = False
+            rm_list = []
             for client in self.clients:
                 pass
                 try:
                     await (client.send(message))
                 except ConnectionClosedOK:
+                    remove = True
+                    rm_list.append(client)
+            if remove:
+                for client in rm_list:
                     self.clients.remove(client)
+
 
     async def sendto_name(self, message, recp):
         #takes a name an checks the config
@@ -113,7 +120,7 @@ class Server():
                     print("Changing sendto from", self.sendto, "to", data.get("change_sendto"))
                     self.sendto = data.get("change_sendto")
                 elif data.get("ident") is None:
-                    print(data.get("sendto"))
+                    # print(data.get("sendto"))
                     data["sendto"] = self.sendto
                     await self.broadcast(json.dumps(data))
                         # await self.sendto_name(message, data.get("sendto"))
@@ -230,7 +237,6 @@ class KeyboardClient(HostClient):
 
             data = {
                 "timestamp": str(ev.timestamp()),
-                "sendto": sendto,
                 "type": ev.type,
                 "code": ev.code,
                 "value": ev.value
@@ -247,8 +253,6 @@ class MouseClient(HostClient):
         async for ev in self.device.async_read_loop():
             data = {
                 "timestamp": str(ev.timestamp()),
-                #this is actually handled serverside despite appearances
-                "sendto": sendto,
                 "type": ev.type,
                 "code": ev.code,
                 "value": ev.value
