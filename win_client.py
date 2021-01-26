@@ -44,9 +44,9 @@ class WindowsClient():
                 loop.run_until_complete(self.event_loop())
             except CancelledError as ce:
                 print("Connection cancelled")
-            # except:
-            #     e = sys.exc_info()[0]
-            #     print(e)
+            except:
+                e = sys.exc_info()[0]
+                print(e)
             #     print(loop.is_closed())
             # loop.run_forever()
 
