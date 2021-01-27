@@ -1,5 +1,5 @@
 import evdev
-from evdev import ecodes as e
+from evdev import AbsInfo, ecodes as e
 import asyncio
 import argparse
 import logging
@@ -247,6 +247,18 @@ class RemoteClient(Client):
                 e.REL_HWHEEL_HI_RES,
                 e.REL_WHEEL_HI_RES
             ],
+            #needed for trackpad functionality.
+            #copied from a 2013 thinkpad w530 your mileage may vary!
+            e.EV_ABS: [
+                (e.ABS_X, AbsInfo(value=3800, min=1250, max=5631, fuzz=0, flat=0, resolution=59)),
+                (e.ABS_Y, AbsInfo(value=3500, min=1205, max=4834, fuzz=0, flat=0, resolution=81)),
+                (e.ABS_PRESSURE, AbsInfo(value=1, min=0, max=255, fuzz=0, flat=0, resolution=0)),
+                (e.ABS_TOOL_WIDTH, AbsInfo(value=0, min=0, max=15, fuzz=0, flat=0, resolution=0)),
+                (e.ABS_MT_SLOT, AbsInfo(value=0, min=0, max=1, fuzz=0, flat=0, resolution=0)),
+                (e.ABS_MT_POSITION_X, AbsInfo(value=0, min=1250, max=5631, fuzz=0, flat=0, resolution=59)),
+                (e.ABS_MT_POSITION_Y, AbsInfo(value=0, min=1205, max=4834, fuzz=0, flat=0, resolution=81)),
+                (e.ABS_MT_TRACKING_ID, AbsInfo(value=0, min=0, max=65535, fuzz=0, flat=0, resolution=0))
+            ]
 
         }
         self.ui = evdev.UInput(cap, name=dev_name)
