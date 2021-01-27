@@ -33,6 +33,7 @@ parser.add_argument('--config', dest="config", action="store", help="Config file
 #TODO fix ssl support? Does not work as expected!
 parser.add_argument('--ssl', dest="ssl", action="store", help="Self signed key file for ssl. (.pem) (also not working for me)")
 parser.add_argument('--debug', dest="debug", default=False, action="store_true", help="Enable client debug (will not write events)")
+parser.add_argument('--default', dest="default", action="store", default=None, help="Default client to send events to")
 
 
 args = parser.parse_args()
@@ -54,7 +55,7 @@ args = parser.parse_args()
 
 #start a server that just passes around messages and keeps track of the clients
 class Server():
-    def __init__(self, address, port, ssl_filename, name, config):
+    def __init__(self, address, port, ssl_filename, name, default, config):
         if ssl_filename is None:
             self.ssl_context = None
         else:
@@ -66,7 +67,8 @@ class Server():
         self.clients = set()
         self.devices = set()
         self.config = config
-        self.sendto = None
+        self.sendto = default
+        self.ipmap = {}
         self.run()
 
     async def connect(self, ws):
@@ -313,7 +315,7 @@ else:
 if args.server:
     #create server
     print("Making server thread")
-    server_thread = threading.Thread(target=Server, args=(args.server, args.port, args.ssl, args.name, config_data))
+    server_thread = threading.Thread(target=Server, args=(args.server, args.port, args.ssl, args.name, args.default, config_data))
     server_thread.name = "Server Thread"
     print("Starting server thread")
     server_thread.start()
