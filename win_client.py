@@ -10,6 +10,7 @@ import time
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 from asyncio.exceptions import CancelledError
 
+from client import Client
 
 parser = argparse.ArgumentParser(description="WindowsClient KVM")
 parser.add_argument('-c', '--client', dest="client", action="store", help="Address to connect to")
@@ -21,40 +22,11 @@ parser.add_argument('--debug', dest="debug", default=False, action="store_true",
 
 args = parser.parse_args()
 
-class WindowsClient():
+class WindowsClient(Client):
     def __init__(self, address, port, ssl_filename, name, debug=False):
-        if ssl_filename is None:
-            self.ssl=False
-            self.ssl_context=None
-        else:
-            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            ssl_context.load_verify_locations(ssl_filename)
-            self.ssl = True
-            self.ssl_context = ssl_context
-        self.address = address
-        self.port = port
-        self.name = name
+        super().__init__(address, port, ssl_filename, name)
         self.debug = debug
         self.run()
-
-    def run(self):
-        while True:
-            loop = asyncio.new_event_loop()
-            try:
-                loop.run_until_complete(self.event_loop())
-            except CancelledError as ce:
-                print("Connection cancelled")
-            except:
-                e = sys.exc_info()[0]
-                print(e)
-            #     print(loop.is_closed())
-            # loop.run_forever()
-
-    def get_uri(self):
-        if self.ssl:
-            return "wss://"+self.address+":"+self.port
-        else:
-            return "ws://"+self.address+":"+self.port
 
     async def event_loop(self):
         uri = self.get_uri()
@@ -93,10 +65,6 @@ class WindowsClient():
                                     mouse.press(m_btn)
                                 elif data['value'] == 0: #up
                                     mouse.release(m_btn)
-                        
-
-
-
                     else:
                         print("Write event:", data["type"], data["code"], data["value"])
                         print("do_press: ", do_press, "do_release: ", do_release)
@@ -109,17 +77,6 @@ class WindowsClient():
             if data['code'] in btn:
                 return True
         return False
-
-
-    # async def windows_write(self, message, )
-# Event code 272 (BTN_LEFT) -> mouse.LEFT
-# Event code 273 (BTN_RIGHT) -> mouse.RIGHT
-# Event code 274 (BTN_MIDDLE) -> mouse.MIDDLE
-# Event code 275 (BTN_SIDE)
-# Event code 276 (BTN_EXTRA)
-# Event code 277 (BTN_FORWARD)
-# Event code 278 (BTN_BACK)
-# Event code 279 (BTN_TASK)
 
 
 mouse_btn_map = {

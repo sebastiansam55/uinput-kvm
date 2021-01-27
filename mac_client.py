@@ -12,7 +12,7 @@ from pynput.keyboard import KeyCode as kc
 from pynput import mouse as mou
 from pynput.mouse import Button
 
-
+from client import Client
 
 #huge shout out to this page for having a translation table!!
 #http://web.archive.org/web/20100501161453/http://www.classicteck.com/rbarticles/mackeyboard.php
@@ -27,40 +27,11 @@ parser.add_argument('--debug', dest="debug", default=False, action="store_true",
 
 args = parser.parse_args()
 
-class MacClient():
+class MacClient(Client):
     def __init__(self, address, port, ssl_filename, name, debug=False):
-        if ssl_filename is None:
-            self.ssl=False
-            self.ssl_context=None
-        else:
-            ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-            ssl_context.load_verify_locations(ssl_filename)
-            self.ssl = True
-            self.ssl_context = ssl_context
-        self.address = address
-        self.port = port
-        self.name = name
+        super().__init__(address, port, ssl_filename, name)
         self.debug = debug
         self.run()
-
-    def run(self):
-        while True:
-            loop = asyncio.new_event_loop()
-            try:
-                loop.run_until_complete(self.event_loop())
-            except CancelledError as ce:
-                print("Connection cancelled")
-            except:
-                e = sys.exc_info()[0]
-                print(e)
-            #     print(loop.is_closed())
-            # loop.run_forever()
-
-    def get_uri(self):
-        if self.ssl:
-            return "wss://"+self.address+":"+self.port
-        else:
-            return "ws://"+self.address+":"+self.port
 
     async def event_loop(self):
         uri = self.get_uri()
