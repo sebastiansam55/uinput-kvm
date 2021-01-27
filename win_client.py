@@ -35,8 +35,9 @@ class WindowsClient(Client):
             await websocket.send(json.dumps({"ident":self.name}))
             async for msg in websocket:
                 data = json.loads(msg)
+                print(data)
                 # print(time.time()-float(data['timestamp']), data)
-                if self.name == data['sendto']:
+                if self.name == data.get('sendto'):
                     if not self.debug:
                         if data['type'] == 1 and not self.is_btn(data): #e.KEY event
                             if data['value'] == 1: #down
