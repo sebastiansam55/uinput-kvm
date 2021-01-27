@@ -1,7 +1,7 @@
 import asyncio
 import websockets
 import sys
-from asyncio.exceptions import CancelledError
+from asyncio import CancelledError
 
 class Client():
     def __init__(self, address, port, ssl_filename, name):

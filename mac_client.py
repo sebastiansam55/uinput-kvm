@@ -6,7 +6,7 @@ import argparse
 import os
 import time
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
-from asyncio.exceptions import CancelledError
+from asyncio import CancelledError
 from pynput import keyboard as kb
 from pynput.keyboard import KeyCode as kc
 from pynput import mouse as mou

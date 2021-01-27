@@ -8,7 +8,7 @@ import argparse
 import os
 import time
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
-from asyncio.exceptions import CancelledError
+from asyncio import CancelledError
 
 from client import Client
 
