@@ -17,16 +17,6 @@ from client import Client
 #huge shout out to this page for having a translation table!!
 #http://web.archive.org/web/20100501161453/http://www.classicteck.com/rbarticles/mackeyboard.php
 
-parser = argparse.ArgumentParser(description="WindowsClient KVM")
-parser.add_argument('-c', '--client', dest="client", action="store", help="Address to connect to")
-parser.add_argument('-n', '--name', dest="name", default=os.uname()[1], action="store", help="Client Name")
-parser.add_argument('-p', '--port', dest="port", action="store", default="8765", help="Port for server or client to use. Defaults to 8765")
-parser.add_argument('-v', '--verbose', dest="verbose", action="store_true", help="Verbose logging")
-parser.add_argument('--ssl', dest="ssl", action="store", help="Self signed key file for ssl. (.pem) (also not working for me)")
-parser.add_argument('--debug', dest="debug", default=False, action="store_true", help="Enable client debug (will not write events)")
-
-args = parser.parse_args()
-
 class MacClient(Client):
     def __init__(self, address, port, ssl_filename, name, debug=False):
         super().__init__(address, port, ssl_filename, name)
@@ -207,10 +197,21 @@ mouse_btn_map = {
     274: Button.middle,
 }
 
+if __name__ == "__main__":
 
-mouse = mou.Controller()
+    mouse = mou.Controller()
 
-keyboard = kb.Controller()
+    keyboard = kb.Controller()
 
-if args.client:
-    mc = MacClient(args.client, args.port, args.ssl, args.name, args.debug)
+    parser = argparse.ArgumentParser(description="MacClient KVM")
+    parser.add_argument('-c', '--client', dest="client", action="store", help="Address to connect to")
+    parser.add_argument('-n', '--name', dest="name", default=os.uname()[1], action="store", help="Client Name")
+    parser.add_argument('-p', '--port', dest="port", action="store", default="8765", help="Port for server or client to use. Defaults to 8765")
+    parser.add_argument('-v', '--verbose', dest="verbose", action="store_true", help="Verbose logging")
+    parser.add_argument('--ssl', dest="ssl", action="store", help="Self signed key file for ssl. (.pem) (also not working for me)")
+    parser.add_argument('--debug', dest="debug", default=False, action="store_true", help="Enable client debug (will not write events)")
+
+    args = parser.parse_args()
+
+    if args.client:
+        mc = MacClient(args.client, args.port, args.ssl, args.name, args.debug)
