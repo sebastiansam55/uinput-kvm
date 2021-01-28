@@ -36,6 +36,7 @@ parser.add_argument('--config', dest="config", action="store", help="Config file
 parser.add_argument('--ssl', dest="ssl", action="store", help="Self signed key file for ssl. (.pem) (also not working for me)")
 parser.add_argument('--debug', dest="debug", default=False, action="store_true", help="Enable client debug (will not write events)")
 parser.add_argument('--default', dest="default", action="store", default=None, help="Default client to send events to")
+parser.add_argument('-b', '--broadcast', action="store_true", default=False, help="Broadcast to all clients")
 
 
 args = parser.parse_args()
@@ -99,36 +100,44 @@ class Server():
 
     async def sendto_name(self, message, recp):
         #takes a name an checks the config
-        if self.config.get(recp):
-            print(self.config.get(recp))
-                            
+        ip = self.ipmap.get(self.sendto)
+        if ip: #if we can get an ip from the current sendto name
+            for client in self.clients:
+                if client.remote_address[0] == ip:
+                    await client.send(json.dumps(message))
 
-    async def listen(self, websocket, path):
-        await self.connect(websocket)
+    async def process_message(self, message, ip):
         try:
-            async for message in websocket:
-                # print(message)
-                try:
-                    data = json.loads(message)
-                    print(data)
-                except:
-                    print("json error")
-                if data.get("change_sendto"):
-                    print("Changing sendto from", self.sendto, "to", data.get("change_sendto"))
-                    self.sendto = data.get("change_sendto")
-                elif data.get("ident") is None:
-                    # print(data.get("sendto"))
-                    data["sendto"] = self.sendto
-                    await self.broadcast(json.dumps(data))
-                        # await self.sendto_name(message, data.get("sendto"))
-                    # await self.broadcast(message)
+            data = json.loads(message.replace("'", "\""))
+            print(data)
+        except:
+            print("json error")
 
-                else:
-                    pass
+        if data.get("change_sendto"):
+            print("Changing sendto from", self.sendto, "to", data.get("change_sendto"))
+            self.sendto = data.get("change_sendto")
+        elif data.get("ident"):
+            # clients send this when they first connect.
+            # Associate with IP it was sent from for lookup
+            self.ipmap[data.get("ident")] = ip
+        else:
+            # print(time.time()-float(data.get('timestamp')), data)
+            data["sendto"] = self.sendto
+            if args.broadcast:
+                await self.broadcast(json.dumps(data))
+            else:
+                await self.sendto_name(data, self.sendto)
+
+
+    async def listen(self, ws, path):
+        await self.connect(ws)
+        try:
+            async for message in ws:
+                asyncio.create_task(self.process_message(message, ws.remote_address[0]))
         except ConnectionClosedError as cce:
             print("Connection Lost")
             traceback.print_exc()
-            await self.disconnect(websocket)
+            await self.disconnect(ws)
         except ConnectionClosedOK as cco:
             print("Connection closed")
             traceback.print_exc()
