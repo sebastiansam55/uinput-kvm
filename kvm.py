@@ -41,20 +41,17 @@ parser.add_argument('-b', '--broadcast', action="store_true", default=False, hel
 
 args = parser.parse_args()
 
-# logging.basicConfig(format='%(asctime)s %(message)s')
-# log = logging.getLogger("kvm")
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
 
-# if args.verbose:
-#     log.setLevel(logging.DEBUG)
-# else:
-#     log.setLevel(logging.INFO)
-
-# ch = logging.StreamHandler()
-# ch.setLevel(logging.DEBUG)
-
-# formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-# ch.setFormatter(formatter)
-# log.addHandler(ch)
+handler = logging.StreamHandler(sys.stdout)
+if args.verbose:
+    handler.setLevel(logging.DEBUG)
+else:
+    handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(message)s')
+handler.setFormatter(formatter)
+log.addHandler(handler)
 
 #start a server that just passes around messages and keeps track of the clients
 class Server():
@@ -71,28 +68,28 @@ class Server():
         self.run(address, port, ssl_context)
 
     async def connect(self, ws):
-        print("Client added: ", ws.remote_address[0])
+        log.info("Client added: "+ws.remote_address[0])
         self.clients.append(ws)
 
     async def disconnect(self, ws):
-        print("Client lost: ", ws.remote_address[0])
+        log.info("Client lost: "+ws.remote_address[0])
         self.clients.remove(ws)
 
     async def broadcast(self, message):
         if self.clients:
-            print(self.clients)
+            log.debug(self.clients)
             remove = False
             rm_list = []
             for client in self.clients:
                 try:
-                    print("Send ",client.remote_address[0])
+                    log.debug("Send to: "+client.remote_address[0])
                     await (client.send(message))
                 except ConnectionClosedOK:
                     remove = True
                     rm_list.append(client)
             if remove:
                 for client in rm_list:
-                    print("Remove", client)
+                    log.debug("Remove: "+client.remote_address)
                     self.clients.remove(client)
 
     async def sendto_name(self, message):
@@ -106,12 +103,12 @@ class Server():
     async def process_message(self, message, ip):
         try:
             data = json.loads(message.replace("'", "\""))
-            print(data)
+            log.debug(data)
         except:
-            print("json error")
+            log.error("JSON formatting error in process message")
 
         if data.get("change_sendto"):
-            print("Changing sendto from", self.sendto, "to", data.get("change_sendto"))
+            log.debug("Changing sendto from "+self.sendto+" to "+data.get("change_sendto"))
             self.sendto = data.get("change_sendto")
         elif data.get("ident"):
             # clients send this when they first connect.
@@ -132,16 +129,16 @@ class Server():
             async for message in ws:
                 asyncio.create_task(self.process_message(message, ws.remote_address[0]))
         except ConnectionClosedError as cce:
-            print("Connection Lost")
+            log.info("Connection Lost")
             traceback.print_exc()
             await self.disconnect(ws)
         except ConnectionClosedOK as cco:
-            print("Connection closed")
+            log.info("Connection closed")
             traceback.print_exc()
 
 
     def run(self, address, port, ssl_context):
-        print("Starting server")
+        log.info("Starting server")
         loop = asyncio.new_event_loop()
         self.server = websockets.serve(self.listen, address, int(port), ssl=ssl_context, loop=loop)
         loop.run_until_complete(self.server)
@@ -165,35 +162,35 @@ class HostClient(Client):
             while True:
                 #add code from uinput-keyboardsremapper to loop try and grab device
                 devices = get_devices()
-                print("Attempting grab: ", self.device_desc)
+                log.info("Attempting grab: "+self.device_desc)
                 self.device = grab_device(devices, self.device_desc)
                 if self.device:
-                    print("Device captured: ", self.device_desc)
+                    log.info("Device captured: "+self.device_desc)
                     try:
                         await self.dev_event_loop(sendto, websocket)
                     except OSError:
-                        print("device disconnected?")
+                        log.error("device disconnected?")
                 #wait 5 seconds before trying to grab
                 await asyncio.sleep(5)
 
 
     async def change_sendto(self, websocket, sendto):
-        print("Sending to: ", sendto)
+        log.info("Sending to: ", sendto)
         data = {"change_sendto": sendto}
         try:
             await websocket.send(json.dumps(data))
         except ConnectionClosedOK as cco:
-            print("Connection closed")
+            log.error("Connection closed")
 
 class KeyboardClient(HostClient):
     def reset_keys(self, held_keys, problem_keys):
             key_list = keyboard.active_keys()
-            print("Active keys: ",key_list)
+            log.debug("Active keys: "+str(key_list))
             for key in key_list:
                 keyboard.write(e.EV_KEY, key, 0)
                 held_keys.remove(key)
             key_list = keyboard.active_keys()
-            print("Active keys: ",key_list)
+            log.debug("Active keys: "+str(key_list))
             for key in problem_keys:
                 keyboard.write(e.EV_KEY, key, 1)
                 keyboard.write(e.EV_KEY, key, 0)
@@ -204,7 +201,6 @@ class KeyboardClient(HostClient):
 
     async def dev_event_loop(self, sendto, websocket):
         modifiers = self.config.get("modifiers")
-        # print(modifiers)
         held_keys = []
         async for ev in self.device.async_read_loop():
             if ev.value == 1: #modifier pressed down
@@ -213,7 +209,7 @@ class KeyboardClient(HostClient):
                 if ev.code in held_keys:
                     held_keys.remove(ev.code)
 
-            print(held_keys)
+            log.debug(held_keys)
 
             all_held = True
             for key in modifiers:
@@ -224,33 +220,33 @@ class KeyboardClient(HostClient):
                     break
 
             if all_held:
-                print("Key event detected when left [shift alt ctrl] held", ev)
+                log.info("Key event detected when left [shift alt ctrl] held"+str(ev.code))
                 for client in self.hotkeys:
                     if client[1] == ev.code:
                         #code to reset keys and grab/ungrab keyboard/mouse
                         if client[0] == self.name:
                             try:
                                 self.reset_keys(held_keys, modifiers)
-                                print(held_keys)
+                                log.debug(held_keys)
                                 keyboard.ungrab()
                             except:
-                                print("Tried ungrab on already ungrabbed dev")
+                                log.debug("Tried ungrab on already ungrabbed dev")
                             try:
                                 mouse.ungrab()
                             except:
-                                print("Tried ungrab on already ungrabbed dev")
+                                log.debug("Tried ungrab on already ungrabbed dev")
                             await self.change_sendto(websocket, None)
                         else:
                             try:
                                 self.reset_keys(held_keys, modifiers)
-                                print(held_keys)
+                                log.debug(held_keys)
                                 keyboard.grab()
                             except:
-                                print("Tried ungrab on already ungrabbed dev")
+                                log.debug("Tried ungrab on already ungrabbed dev")
                             try:
                                 mouse.grab()
                             except:
-                                print("Tried ungrab on already ungrabbed dev")
+                                log.debug("Tried ungrab on already ungrabbed dev")
                             sendto = client[0]
                             await self.change_sendto(websocket, sendto)
 
@@ -265,7 +261,7 @@ class KeyboardClient(HostClient):
             try:
                 await websocket.send(json.dumps(data))
             except ConnectionClosedOK as cco:
-                print("Connection Closed!")
+                log.error("Connection Closed!")
 
 #says mouse but will send any captured events.
 class MouseClient(HostClient):
@@ -281,7 +277,7 @@ class MouseClient(HostClient):
             try:
                 await websocket.send(json.dumps(data))
             except ConnectionClosedOK as cco:
-                print("Connection Closed!")
+                log.error("Connection Closed!")
 
 def get_devices():
     return [evdev.InputDevice(path) for path in evdev.list_devices()]
@@ -317,50 +313,50 @@ if args.list:
     sys.exit()
 
 if args.config:
-    print("Loading list of clients")
+    log.info("Loading list of clients")
     with open(args.config, 'r') as f:
         config_data = json.load(f)
-        print(config_data)
+        log.debug(config_data)
 else:
     config_data = None
 
 if args.server:
     #create server
-    print("Making server thread")
+    log.info("Making server thread")
     server_thread = threading.Thread(target=Server, args=(args.server, args.port, args.ssl, args.name, args.default, config_data))
     server_thread.name = "Server Thread"
-    print("Starting server thread")
+    log.info("Starting server thread")
     server_thread.start()
     time.sleep(1)
 
     #grab mouse
     if args.mouse:
-        print("Making MouseHostClient thread")
+        log.info("Making MouseHostClient thread")
         mouse_host_thread = threading.Thread(target=MouseClient, args=(args.server, args.port, args.ssl, args.name, args.mouse, config_data))
         mouse_host_thread.name = "Mouse Client Thread"
-        print("Starting mousehostclient thread")
+        log.info("Starting mousehostclient thread")
         mouse_host_thread.start()
         
     #grab keyboard
     if args.keyboard:
-        print("Making KeyboardHostClient thread")
+        log.info("Making KeyboardHostClient thread")
         keyboard_host_thread = threading.Thread(target=KeyboardClient, args=(args.server, args.port, args.ssl, args.name, args.keyboard, config_data))
         keyboard_host_thread.name = "Keyboard Client Thread"
-        print("Starting keyboardhostclient thread")
+        log.info("Starting keyboardhostclient thread")
         keyboard_host_thread.start()
 
     #grab stadia controller
     if args.controller:
-        print("Making ControllerClient thread")
+        log.info("Making ControllerClient thread")
         stadia_host_thread = threading.Thread(target=MouseClient, args=(args.server, args.port, args.ssl, args.name, args.controller, config_data))
         stadia_host_thread.name = "Controller Client Thread"
-        print("Starting Controller thread")
+        log.info("Starting Controller thread")
         stadia_host_thread.start()
         
 elif args.client:
     #create a uinput device for both mouse and keyboard?
-    print("Making Linux thread")
+    log.info("Making Linux thread")
     remote_thread = threading.Thread(target=LinuxClient, args=(args.client, args.port, args.ssl, args.name, args.dev_name, None, args.debug))
     remote_thread.name = "Linux Client Thread"
-    print("Starting LinuxClient thread")
+    log.info("Starting LinuxClient thread")
     remote_thread.start()
