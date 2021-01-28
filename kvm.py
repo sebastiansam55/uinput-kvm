@@ -60,22 +60,19 @@ args = parser.parse_args()
 class Server():
     def __init__(self, address, port, ssl_filename, name, default, config):
         if ssl_filename is None:
-            self.ssl_context = None
+            ssl_context = None
         else:
             ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             ssl_context.load_verify_locations(ssl_filename)
-            self.ssl_context = ssl_context
-        self.address = address
-        self.port = port
-        self.clients = set()
+        self.clients = []
         self.config = config
         self.sendto = default
         self.ipmap = {}
-        self.run()
+        self.run(address, port, ssl_context)
 
     async def connect(self, ws):
         print("Client added: ", ws.remote_address[0])
-        self.clients.add(ws)
+        self.clients.append(ws)
 
     async def disconnect(self, ws):
         print("Client lost: ", ws.remote_address[0])
@@ -98,8 +95,8 @@ class Server():
                     print("Remove", client)
                     self.clients.remove(client)
 
-    async def sendto_name(self, message, recp):
-        #takes a name an checks the config
+    async def sendto_name(self, message):
+        #takes a name and checks the config
         ip = self.ipmap.get(self.sendto)
         if ip: #if we can get an ip from the current sendto name
             for client in self.clients:
@@ -126,7 +123,7 @@ class Server():
             if args.broadcast:
                 await self.broadcast(json.dumps(data))
             else:
-                await self.sendto_name(data, self.sendto)
+                await self.sendto_name(data)
 
 
     async def listen(self, ws, path):
@@ -143,10 +140,10 @@ class Server():
             traceback.print_exc()
 
 
-    def run(self):
+    def run(self, address, port, ssl_context):
         print("Starting server")
         loop = asyncio.new_event_loop()
-        self.server = websockets.serve(self.listen, self.address, int(self.port), ssl=self.ssl_context, loop=loop)
+        self.server = websockets.serve(self.listen, address, int(port), ssl=ssl_context, loop=loop)
         loop.run_until_complete(self.server)
         loop.run_forever()
 
