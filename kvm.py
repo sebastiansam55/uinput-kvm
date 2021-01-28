@@ -142,11 +142,12 @@ class Server():
 
 #HOST that sends out input events
 class HostClient(Client):
-    def __init__(self, address, port, ssl_filename, name, device, config_data):
+    def __init__(self, address, port, ssl_filename, name, device_desc, config_data):
         super().__init__(address, port, ssl_filename, name)
         self.config = config_data
         self.hotkeys = self.config.get("hotkeys")
-        self.device = device
+        self.device = None
+        self.device_desc = device_desc
         self.run()
 
     async def event_loop(self):
@@ -155,7 +156,19 @@ class HostClient(Client):
         async with websockets.connect(uri, ssl=self.ssl_context) as websocket:
             await websocket.send(json.dumps({"ident":self.name}))
             while True:
-                await self.dev_event_loop(sendto, websocket)
+                #add code from uinput-keyboardsremapper to loop try and grab device
+                devices = get_devices()
+                print("Attempting grab: ", self.device_desc)
+                self.device = grab_device(devices, self.device_desc)
+                if self.device:
+                    print("Device captured: ", self.device_desc)
+                    try:
+                        await self.dev_event_loop(sendto, websocket)
+                    except OSError:
+                        print("device disconnected?")
+                #wait 5 seconds before trying to grab
+                await asyncio.sleep(5)
+
 
     async def change_sendto(self, websocket, sendto):
         print("Sending to: ", sendto)
@@ -166,12 +179,27 @@ class HostClient(Client):
             print("Connection closed")
 
 class KeyboardClient(HostClient):
+    def reset_keys(self, held_keys, problem_keys):
+            key_list = keyboard.active_keys()
+            print("Active keys: ",key_list)
+            for key in key_list:
+                keyboard.write(e.EV_KEY, key, 0)
+                held_keys.remove(key)
+            key_list = keyboard.active_keys()
+            print("Active keys: ",key_list)
+            for key in problem_keys:
+                keyboard.write(e.EV_KEY, key, 1)
+                keyboard.write(e.EV_KEY, key, 0)
+            # keyboard.syn()
+            # for key in reset_list:
+
+
+
     async def dev_event_loop(self, sendto, websocket):
         modifiers = self.config.get("modifiers")
         # print(modifiers)
         held_keys = []
         async for ev in self.device.async_read_loop():
-
             if ev.value == 1: #modifier pressed down
                 held_keys.append(ev.code)
             elif ev.value == 0: #modifier released!
@@ -192,8 +220,33 @@ class KeyboardClient(HostClient):
                 print("Key event detected when left [shift alt ctrl] held", ev)
                 for client in self.hotkeys:
                     if client[1] == ev.code:
-                        sendto = client[0]
-                        await self.change_sendto(websocket, sendto)
+                        #code to reset keys and grab/ungrab keyboard/mouse
+                        if client[0] == self.name:
+                            try:
+                                self.reset_keys(held_keys, modifiers)
+                                print(held_keys)
+                                keyboard.ungrab()
+                            except:
+                                print("Tried ungrab on already ungrabbed dev")
+                            try:
+                                mouse.ungrab()
+                            except:
+                                print("Tried ungrab on already ungrabbed dev")
+                            await self.change_sendto(websocket, None)
+                        else:
+                            try:
+                                self.reset_keys(held_keys, modifiers)
+                                print(held_keys)
+                                keyboard.grab()
+                            except:
+                                print("Tried ungrab on already ungrabbed dev")
+                            try:
+                                mouse.grab()
+                            except:
+                                print("Tried ungrab on already ungrabbed dev")
+                            sendto = client[0]
+                            await self.change_sendto(websocket, sendto)
+
 
             data = {
                 "timestamp": str(ev.timestamp()),
@@ -327,22 +380,16 @@ if args.server:
 
     #grab mouse
     if args.mouse:
-        mouse = grab_device(devices, args.mouse)
-        if args.grab:
-            mouse.grab()
         print("Making MouseHostClient thread")
-        mouse_host_thread = threading.Thread(target=MouseClient, args=(args.server, args.port, args.ssl, args.name, mouse, config_data))
+        mouse_host_thread = threading.Thread(target=MouseClient, args=(args.server, args.port, args.ssl, args.name, args.mouse, config_data))
         mouse_host_thread.name = "Mouse Client Thread"
         print("Starting mousehostclient thread")
         mouse_host_thread.start()
         
     #grab keyboard
     if args.keyboard:
-        keyboard = grab_device(devices, args.keyboard)
-        if args.grab:
-            keyboard.grab()
         print("Making KeyboardHostClient thread")
-        keyboard_host_thread = threading.Thread(target=KeyboardClient, args=(args.server, args.port, args.ssl, args.name, keyboard, config_data))
+        keyboard_host_thread = threading.Thread(target=KeyboardClient, args=(args.server, args.port, args.ssl, args.name, args.keyboard, config_data))
         keyboard_host_thread.name = "Keyboard Client Thread"
         print("Starting keyboardhostclient thread")
         keyboard_host_thread.start()
