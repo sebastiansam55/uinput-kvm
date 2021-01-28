@@ -15,6 +15,7 @@ import traceback
 import ssl
 
 from client import Client
+from linux_client import LinuxClient
 
 parser = argparse.ArgumentParser(description="UInput KVM")
 parser.add_argument('-c', '--client', dest="client", action="store", help="Address to connect to")
@@ -275,61 +276,6 @@ class MouseClient(HostClient):
             except ConnectionClosedOK as cco:
                 print("Connection Closed!")
 
-
-
-#client that recieves input events and executes them via uinput!
-class RemoteClient(Client):
-    def __init__(self, address, port, ssl_filename, name, dev_name, config_data=None, debug=False):
-        super().__init__(address, port, ssl_filename, name)
-        self.config = config_data
-        self.debug = debug
-        cap = {
-            e.EV_KEY: e.keys.keys(),
-            e.EV_REL: [
-                e.REL_X,
-                e.REL_Y,
-                e.REL_HWHEEL,
-                e.REL_WHEEL,
-                e.REL_HWHEEL_HI_RES,
-                e.REL_WHEEL_HI_RES
-            ],
-            #needed for trackpad functionality.
-            #copied from a 2013 thinkpad w530 your mileage may vary!
-            e.EV_ABS: [
-                (e.ABS_X, AbsInfo(value=3800, min=1250, max=5631, fuzz=0, flat=0, resolution=59)),
-                (e.ABS_Y, AbsInfo(value=3500, min=1205, max=4834, fuzz=0, flat=0, resolution=81)),
-                (e.ABS_PRESSURE, AbsInfo(value=1, min=0, max=255, fuzz=0, flat=0, resolution=0)),
-                (e.ABS_TOOL_WIDTH, AbsInfo(value=0, min=0, max=15, fuzz=0, flat=0, resolution=0)),
-                (e.ABS_MT_SLOT, AbsInfo(value=0, min=0, max=1, fuzz=0, flat=0, resolution=0)),
-                (e.ABS_MT_POSITION_X, AbsInfo(value=0, min=1250, max=5631, fuzz=0, flat=0, resolution=59)),
-                (e.ABS_MT_POSITION_Y, AbsInfo(value=0, min=1205, max=4834, fuzz=0, flat=0, resolution=81)),
-                (e.ABS_MT_TRACKING_ID, AbsInfo(value=0, min=0, max=65535, fuzz=0, flat=0, resolution=0))
-            ]
-
-        }
-        self.ui = evdev.UInput(cap, name=dev_name)
-        self.run()
-
-    async def event_loop(self):
-        uri = self.get_uri()
-        print("Connecting to: ", uri)
-        async with websockets.connect(uri, ssl=self.ssl_context) as websocket:
-            await websocket.send(json.dumps({"ident":self.name}))
-            async for msg in websocket:
-                data = json.loads(msg)
-                print(time.time()-float(data['timestamp']), data)
-                if self.name == data['sendto']:
-                    if not self.debug:
-                        self.ui.write(data["type"], data["code"], data["value"])
-                    else:
-                        print("Write event:", data["type"], data["code"], data["value"])
-                else:
-                    print("Not meant for me!")
-
-
-
-
-
 def get_devices():
     return [evdev.InputDevice(path) for path in evdev.list_devices()]
 
@@ -396,8 +342,8 @@ if args.server:
         
 elif args.client:
     #create a uinput device for both mouse and keyboard?
-    print("Making RemoteClient thread")
-    remote_thread = threading.Thread(target=RemoteClient, args=(args.client, args.port, args.ssl, args.name, args.dev_name, None, args.debug))
-    remote_thread.name = "Remote Thread"
-    print("Starting RemoteClient thread")
+    print("Making Linux thread")
+    remote_thread = threading.Thread(target=LinuxClient, args=(args.client, args.port, args.ssl, args.name, args.dev_name, None, args.debug))
+    remote_thread.name = "Linux Client Thread"
+    print("Starting LinuxClient thread")
     remote_thread.start()
