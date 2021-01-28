@@ -283,17 +283,30 @@ class RemoteClient(Client):
                     print("Not meant for me!")
 
 
+
+
+
 def get_devices():
     return [evdev.InputDevice(path) for path in evdev.list_devices()]
 
-def grab_device(devices, path):
+def grab_device(devices, descriptor):
+    #determine if descriptor is a path or a name
     return_device = None
-    for device in devices:
-        if path==device.path:
-            device.close()
-            return_device = evdev.InputDevice(device.path)
-        else:
-            device.close()
+    if "/dev/" in descriptor: #assume function was passed a path
+        for device in devices:
+            if descriptor==device.path:
+                device.close()
+                return_device = evdev.InputDevice(device.path)
+            else:
+                device.close()
+    else: #assume that function was passed a plain text name
+        for device in devices:
+            if descriptor==device.name:
+                device.close()
+                return_device = evdev.InputDevice(device.path)
+            else:
+                device.close()
+
 
     return return_device
 
