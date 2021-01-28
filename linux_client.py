@@ -27,14 +27,14 @@ class LinuxClient(Client):
             if not self.exec_all: await websocket.send(json.dumps({"ident":self.name}))
             async for msg in websocket:
                 data = json.loads(msg.replace('\'',"\""))
-                print(data)
+                if not args.quiet: print(data)
                 if data.get('timestamp'):
-                    print(time.time()-float(data.get('timestamp')), data)
+                    if not args.quiet: print(time.time()-float(data.get('timestamp')), data)
                 if self.name == data.get('sendto') or self.exec_all:
                     if not self.debug:
                         self.ui.write(data["type"], data["code"], data["value"])
                     else:
-                        print("Write event:", data["type"], data["code"], data["value"])
+                        if not args.quiet: print("Write event:", data["type"], data["code"], data["value"])
                 else:
                     print("Not meant for me!")
 
@@ -110,6 +110,8 @@ if __name__=="__main__":
 
     parser.add_argument('-p', '--port', dest="port", action="store", default="8765", help="Port for server or client to use. Defaults to 8765")
     parser.add_argument('-v', '--verbose', dest="verbose", action="store_true", help="Verbose logging")
+    parser.add_argument('-q', '--quiet', dest="quiet", action="store_true", help="Minimal Output")
+
     parser.add_argument('--ssl', dest="ssl", action="store", help="Self signed key file for ssl. (.pem) (also not working for me)")
     parser.add_argument('--debug', dest="debug", default=False, action="store_true", help="Enable client debug (will not write events)")
 

@@ -31,7 +31,7 @@ class MacClient(Client):
             async for msg in websocket:
                 data = json.loads(msg)
                 # print(time.time()-float(data['timestamp']), data)
-                if self.name == data.get('sendto'):
+                if self.name == data.get('sendto') or args.exec_all:
                     if not self.debug:
                         if data['type'] == 1 and not self.is_btn(data): #e.KEY event
                             try:
@@ -40,11 +40,11 @@ class MacClient(Client):
                                     keyboard.press(keyCode)
                                 elif data['value'] == 0: #up
                                     keyboard.release(keyCode)
-                                print("MacClient Keyboard write:", data['code'], keyCode)
+                                if not args.quiet: print("MacClient Keyboard write:", data['code'], keyCode)
                             except KeyError as err:
-                                print("Code not found in map: ",data['code'],err)
+                                if not args.quiet: print("Code not found in map: ",data['code'],err)
                         elif data['type'] == 2:
-                            print("MacClient Mouse write:", data['code'], data['value'])
+                            if not args.quiet: print("MacClient Mouse write:", data['code'], data['value'])
                             if data['code'] == 0: #REL_X
                                 mouse.move(data['value'],0)
                             elif data['code'] == 1: #REL_Y
@@ -59,7 +59,7 @@ class MacClient(Client):
                             #mouse button
                             if data['code'] in mouse_btn_map: #left,right, middle
                                 m_btn = mouse_btn_map[data['code']]
-                                print(m_btn)
+                                if not args.quiet: print(m_btn)
                                 if data['value'] == 1: #down
                                     mouse.press(m_btn)
                                 elif data['value'] == 0: #up
@@ -210,6 +210,8 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', dest="verbose", action="store_true", help="Verbose logging")
     parser.add_argument('--ssl', dest="ssl", action="store", help="Self signed key file for ssl. (.pem) (also not working for me)")
     parser.add_argument('--debug', dest="debug", default=False, action="store_true", help="Enable client debug (will not write events)")
+    parser.add_argument('--all', dest="exec_all", default=False, action="store_true", help="Execute all recieved commands")
+    parser.add_argument('-q', '--quiet', dest="quiet", action="store_true", help="Minimal Output")
 
     args = parser.parse_args()
 
