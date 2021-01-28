@@ -7,7 +7,6 @@ import threading
 import websockets
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 from asyncio import CancelledError
-from queue import Queue
 import time
 import json
 import sys
