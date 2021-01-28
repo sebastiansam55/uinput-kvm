@@ -22,8 +22,9 @@ parser.add_argument('-c', '--client', dest="client", action="store", help="Addre
 parser.add_argument('-n', '--name', dest="name", default=os.uname()[1], action="store", help="Client Name")
 parser.add_argument('-s', '--server', dest="server", action="store", help="Address to bind to")
 #TODO grab via a different method
-parser.add_argument('-m', '--mouse', dest="mouse", action="store", help="Full path to mouse device")
-parser.add_argument('-k', '--keyboard', dest="keyboard", action="store", help="Full path to keyboard device")
+parser.add_argument('-m', '--mouse', dest="mouse", action="store", help="Full path to mouse/any other device device")
+parser.add_argument('-k', '--keyboard', dest="keyboard", action="store", help="Full path to keyboard device. Must be a keyboard device")
+parser.add_argument('--controller', dest='controller', action="store", help="Full path to the controller device") #used if you want to send a keyboard, mouse and controller. Otherwise you can use the -m flag
 parser.add_argument('-d', '--dev_name', dest="dev_name", default="UInput KVM", action="store", help="Name of device to be created for remote interactions")
 parser.add_argument('-p', '--port', dest="port", action="store", default="8765", help="Port for server or client to use. Defaults to 8765")
 parser.add_argument('-v', '--verbose', dest="verbose", action="store_true", help="Verbose logging")
@@ -261,6 +262,7 @@ class KeyboardClient(HostClient):
             except ConnectionClosedOK as cco:
                 print("Connection Closed!")
 
+#says mouse but will send any captured events.
 class MouseClient(HostClient):
     #mouse is much simpler
     async def dev_event_loop(self, sendto, websocket):
@@ -339,6 +341,14 @@ if args.server:
         keyboard_host_thread.name = "Keyboard Client Thread"
         print("Starting keyboardhostclient thread")
         keyboard_host_thread.start()
+
+    #grab stadia controller
+    if args.controller:
+        print("Making ControllerClient thread")
+        stadia_host_thread = threading.Thread(target=MouseClient, args=(args.server, args.port, args.ssl, args.name, args.controller, config_data))
+        stadia_host_thread.name = "Controller Client Thread"
+        print("Starting Controller thread")
+        stadia_host_thread.start()
         
 elif args.client:
     #create a uinput device for both mouse and keyboard?
