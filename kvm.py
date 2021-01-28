@@ -65,27 +65,18 @@ class Server():
         self.address = address
         self.port = port
         self.clients = set()
-        self.devices = set()
         self.config = config
         self.sendto = default
         self.ipmap = {}
         self.run()
 
     async def connect(self, ws):
-        if self.address == ws.remote_address[0]:
-            print("Device added: ", ws.remote_address[0])
-            self.devices.add(ws)
-        else:
-            print("Client added: ", ws.remote_address[0])
-            self.clients.add(ws)
+        print("Client added: ", ws.remote_address[0])
+        self.clients.add(ws)
 
     async def disconnect(self, ws):
-        if self.address == ws.remote_address[0]:
-            print("Device lost: ", ws.remote_address[0])
-            self.devices.remove(ws)
-        else:
-            print("Client lost: ", ws.remote_address[0])
-            self.clients.remove(ws)
+        print("Client lost: ", ws.remote_address[0])
+        self.clients.remove(ws)
 
     async def broadcast(self, message):
         if self.clients:
