@@ -56,6 +56,8 @@ def connect():
     except:
         print("Connection Error")
     return ws
+
+
 ws = None
 while ws is None:
     ws = connect()
@@ -65,8 +67,11 @@ device = get_dev()
 while True:
     try:
         for ev in device.read_loop():
+            ts = ev.timestamp()
+            if time.time()>ts+1: #forget events over 1s old
+                continue
             data = {
-                "timestamp": str(ev.timestamp()),
+                "timestamp": str(ts),
                 "type": ev.type,
                 "code": ev.code,
                 "value": ev.value,
