@@ -292,6 +292,8 @@ def get_devices():
 def grab_device(devices, descriptor):
     #determine if descriptor is a path or a name
     return_device = None
+    if len(descriptor) <= 2: #assume that people don't have more than 99 input devices
+        descriptor = "/dev/input/event"+descriptor
     if "/dev/" in descriptor: #assume function was passed a path
         for device in devices:
             if descriptor==device.path:
