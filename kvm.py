@@ -11,6 +11,7 @@ import time
 import json
 import sys
 import os
+import traceback
 import ssl
 
 from client import Client
@@ -133,12 +134,12 @@ class Server():
                     pass
         except ConnectionClosedError as cce:
             print("Connection Lost")
-            print(cce)
+            traceback.print_exc()
             await self.disconnect(websocket)
         except ConnectionClosedOK as cco:
             print("Connection closed")
-        finally:
-            pass
+            traceback.print_exc()
+
 
     def run(self):
         print("Starting server")
