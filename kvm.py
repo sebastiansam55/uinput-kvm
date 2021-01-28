@@ -27,7 +27,7 @@ parser.add_argument('-k', '--keyboard', dest="keyboard", action="store", help="F
 parser.add_argument('--controller', dest='controller', action="store", help="Full path to the controller device") #used if you want to send a keyboard, mouse and controller. Otherwise you can use the -m flag
 parser.add_argument('-d', '--dev_name', dest="dev_name", default="UInput KVM", action="store", help="Name of device to be created for remote interactions")
 parser.add_argument('-p', '--port', dest="port", action="store", default="8765", help="Port for server or client to use. Defaults to 8765")
-parser.add_argument('-v', '--verbose', dest="verbose", action="store_true", help="Verbose logging")
+parser.add_argument('-v', '--verbose', dest="verbose", action="store_true", help="Verbose logging (Does nothing rn)")
 #TODO work out system that allows for non-exclusive grabs
 parser.add_argument('-g', '--grab', dest="grab", action="store_true", help="Grab all input from devices")
 parser.add_argument('-ls', '--list', dest="list", action="store_true", help="List device available on computer")
@@ -86,16 +86,16 @@ class Server():
             remove = False
             rm_list = []
             for client in self.clients:
-                pass
                 try:
+                    print("Send ",client.remote_address[0])
                     await (client.send(message))
                 except ConnectionClosedOK:
                     remove = True
                     rm_list.append(client)
             if remove:
                 for client in rm_list:
+                    print("Remove", client)
                     self.clients.remove(client)
-
 
     async def sendto_name(self, message, recp):
         #takes a name an checks the config
@@ -140,7 +140,6 @@ class Server():
         self.server = websockets.serve(self.listen, self.address, int(self.port), ssl=self.ssl_context, loop=loop)
         loop.run_until_complete(self.server)
         loop.run_forever()
-        
 
 #HOST that sends out input events
 class HostClient(Client):
