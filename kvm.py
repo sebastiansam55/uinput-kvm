@@ -309,7 +309,7 @@ print("Getting list of devices")
 devices = get_devices()
 if args.list:
     for dev in get_devices():
-        print(dev.path, dev.name, dev.phys)
+        print("Path:","\""+dev.path+"\"", "Name: \""+dev.name+"\"", dev.phys)
     sys.exit()
 
 if args.config:
